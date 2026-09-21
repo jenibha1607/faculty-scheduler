@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FacultyFlow - Fixed Faculty Access</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',system-ui,sans-serif}
+body{background:#f5f7fb;color:#0f172a}
+.login-bg{background:linear-gradient(135deg,#6366f1,#8b5cf6 50%,#ec4899);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.card{background:white;border-radius:28px;padding:36px;width:100%;max-width:430px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.input{width:100%;padding:14px;border:2px solid #e2e8f0;border-radius:14px;margin-bottom:12px;outline:none}
+.btn{width:100%;padding:14px;background:#0f172a;color:white;border:none;border-radius:14px;font-weight:700;cursor:pointer}
+.app-layout{display:flex;min-height:100vh}
+.sidebar{width:260px;background:#0f172a;color:white;padding:24px;position:fixed;height:100vh}
+.nav-btn{width:100%;text-align:left;padding:12px 14px;border-radius:12px;border:none;background:transparent;color:#cbd5e1;cursor:pointer;margin-bottom:6px;font-weight:600}
+.nav-btn.active{background:#6366f1;color:white}
+.main{margin-left:260px;flex:1;padding:28px}
+.mini{background:white;border-radius:20px;padding:18px;border:1px solid #e2e8f0}
+.hidden{display:none!important}
+.badge{padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;color:white;display:inline-block;min-width:85px;text-align:center}
+.badge-cancel{background:#fee2e2;color:#ef4444}
+.badge-lunch{background:#fef3c7;color:#d97706}
+.time-table{width:100%;border-collapse:collapse}
+.time-table th{background:#f8fafc;padding:12px 10px;text-align:center;font-size:12px;color:#64748b;text-transform:uppercase}
+.time-table td{padding:12px 8px;border-top:1px solid #f1f5f9;text-align:center;font-size:13px}
+.time-col{font-weight:800;text-align:left!important;background:#f8fafc}
+.faculty-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.status-free{background:#dcfce7;color:#15803d;padding:4px 12px;border-radius:999px;font-size:11px;font-weight:800}
+.status-busy{background:#fee2e2;color:#b91c1c;padding:4px 12px;border-radius:999px;font-size:11px;font-weight:800}
+.subject-tag{background:#eef2ff;color:#6366f1;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;margin-right:4px;display:inline-block;margin-top:4px}
+.student-table{width:100%;border-collapse:collapse}
+.student-table th{background:#0f172a;color:white;padding:10px;text-align:left;font-size:12px}
+.student-table td{padding:10px;border-top:1px solid #e2e8f0;font-size:13px}
+@media(max-width:900px){.sidebar{width:100%;height:auto;position:relative}.main{margin-left:0}}
+</style>
+</head>
+<body>
+
+<div id="login" class="login-bg">
+  <div class="card">
+    <h1 style="font-size:32px;font-weight:900">FacultyFlow</h1>
+    <p style="color:#64748b;font-size:13px;margin:6px 0 20px">Fixed: Faculty can now access Students</p>
+    <select id="role" class="input"><option value="admin">Admin - Asin Only</option><option value="faculty">Faculty - Priya, Arjun, etc</option><option value="student">Student</option></select>
+    <input id="name" class="input" placeholder="Enter Name (Asin / Priya / Rahul)">
+    <button onclick="enter()" class="btn">Login →</button>
+    <p id="error" style="color:#ef4444;font-size:13px;margin-top:10px;text-align:center;font-weight:600"></p>
+  </div>
+</div>
+
+<div id="app" class="hidden app-layout">
+  <div class="sidebar">
+    <h2>FacultyFlow</h2><div id="userInfo" style="font-size:11px;color:#94a3b8;margin:4px 0 32px;text-transform:uppercase"></div>
+    <button id="b-dash" onclick="tab('dash')" class="nav-btn active">📊 Dashboard</button>
+    <button id="b-time" onclick="tab('time')" class="nav-btn">🗓️ Timetable 9-4</button>
+    <button id="b-fac" onclick="tab('fac')" class="nav-btn">👩‍🏫 Faculty</button>
+    <button id="b-stud" onclick="tab('stud')" class="nav-btn">👨‍🎓 Students</button>
+    <button id="b-rem" onclick="tab('rem')" class="nav-btn">🔔 Reminders</button>
+    <button onclick="location.reload()" style="position:absolute;bottom:20px;background:transparent;border:none;color:#64748b;font-size:12px;cursor:pointer">← Logout</button>
+  </div>
+  <div class="main">
+    <div id="dashTab">
+      <h1 id="dashTitle" style="font-size:26px;font-weight:900"></h1><p id="dashDesc" style="color:#64748b;font-size:14px;margin-top:6px"></p>
+      <div id="dashCards" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:20px"></div>
+      <div id="adminAlert" class="hidden" style="background:#fef3c7;border-left:4px solid #f59e0b;padding:16px;border-radius:16px;margin-top:20px"><b>⚠️ Admin Conflict:</b> Dr. Priya double-booked <button onclick="resolve()" style="margin-left:12px;background:#0f172a;color:white;border:none;padding:6px 14px;border-radius:8px;cursor:pointer">Auto-Fix</button></div>
+      <div id="facultyActions" class="hidden" style="margin-top:20px;display:flex;gap:10px"><button onclick="markFree()" style="background:#10b981;color:white;border:none;padding:12px 18px;border-radius:12px;font-weight:700;cursor:pointer">Mark Me as FREE for Students</button><button onclick="tab('stud')" style="background:#6366f1;color:white;border:none;padding:12px 18px;border-radius:12px;font-weight:700;cursor:pointer">View My Students (62) →</button></div>
+    </div>
+
+    <div id="timeTab" class="hidden"><h1 style="font-size:24px;font-weight:900">Timetable 9AM-4PM</h1><p id="timeInfo" style="color:#64748b;font-size:13px;margin:8px 0"></p><button id="cancelBtn" onclick="cancelClass()" style="background:#ef4444;color:white;border:none;padding:10px 18px;border-radius:12px;font-weight:700;cursor:pointer;margin-bottom:12px">+ Cancel Period (Admin Only)</button><div style="background:white;border-radius:20px;border:1px solid #e2e8f0;overflow:auto"><table class="time-table" id="fullTable"><tr><th class="time-col">Time / Day</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th></tr></table></div></div>
+
+    <div id="facTab" class="hidden"><h1 id="facTitle" style="font-size:24px;font-weight:900"></h1><p id="facDesc" style="color:#64748b;font-size:13px;margin:8px 0"></p><div id="facCards" class="faculty-grid"></div></div>
+
+    <div id="studTab" class="hidden">
+      <h1 id="studTitle" style="font-size:24px;font-weight:900"></h1>
+      <p id="studDesc" style="color:#64748b;font-size:13px;margin:8px 0"></p>
+      <div style="background:white;border-radius:20px;border:1px solid #e2e8f0;overflow:auto;margin-top:12px">
+        <table class="student-table" id="studentTable"><tr><th>Roll No</th><th>Name</th><th>Branch</th><th>Status</th><th>Action</th></tr></table>
+      </div>
+    </div>
+
+    <div id="remTab" class="hidden"><h1 style="font-size:24px;font-weight:900">Reminders</h1><div id="remBox" style="margin-top:16px"></div></div>
+  </div>
+</div>
+
+<script>
+const facultyData=[
+  {name:"Dr. Priya Sharma",key:"priya",subjects:["DBMS","DBMS Lab"],cabin:"A-101",email:"priya@college.edu",status:"FREE NOW",color:"free",exp:"12 Years"},
+  {name:"Prof. Arjun Kumar",key:"arjun",subjects:["OS","CN"],cabin:"A-102",email:"arjun@college.edu",status:"IN CLASS (9-10)",color:"busy",exp:"8 Years"},
+  {name:"Dr. Kavya R.",key:"kavya",subjects:["VLSI","SE"],cabin:"A-103",email:"kavya@college.edu",status:"FREE NOW",color:"free",exp:"10 Years"},
+  {name:"Prof. Ravi Shankar",key:"ravi",subjects:["Maths","Maths Tut"],cabin:"B-201",email:"ravi@college.edu",status:"FREE NOW",color:"free",exp:"15 Years"},
+  {name:"Dr. Sunita Verma",key:"sunita",subjects:["DBMS Lab","SE Lab"],cabin:"Lab-1",email:"sunita@college.edu",status:"IN LAB",color:"busy",exp:"7 Years"},
+  {name:"Prof. Manoj T.",key:"manoj",subjects:["CN Lab","OS Lab"],cabin:"Lab-2",email:"manoj@college.edu",status:"FREE NOW",color:"free",exp:"6 Years"},
+  {name:"Dr. Anjali Nair",key:"anjali",subjects:["SE","Testing"],cabin:"A-104",email:"anjali@college.edu",status:"FREE NOW",color:"free",exp:"9 Years"},
+  {name:"Prof. Karthik S.",key:"karthik",subjects:["VLSI Lab"],cabin:"Lab-3",email:"karthik@college.edu",status:"FREE NOW",color:"free",exp:"5 Years"},
+  {name:"Dr. Meena Gupta",key:"meena",subjects:["Maths"],cabin:"B-202",email:"meena@college.edu",status:"ON LEAVE",color:"busy",exp:"11 Years"},
+  {name:"Prof. Vikram J.",key:"vikram",subjects:["CN","Cyber Sec"],cabin:"A-105",email:"vikram@college.edu",status:"FREE NOW",color:"free",exp:"7 Years"},
+];
+const timetableData=[
+  {time:"9-10 AM",mon:{s:"DBMS",f:"Priya",c:"#6366f1"},tue:{s:"Cancelled",c:"cancel"},wed:{s:"CN",f:"Arjun",c:"#10b981"},thu:{s:"DBMS",f:"Priya",c:"#6366f1"},fri:{s:"SE",f:"Kavya",c:"#8b5cf6"}},
+  {time:"10-11 AM",mon:{s:"OS",f:"Arjun",c:"#10b981"},tue:{s:"DBMS Lab",f:"Priya",c:"#059669"},wed:{s:"VLSI",f:"Kavya",c:"#8b5cf6"},thu:{s:"Maths",f:"Ravi",c:"#f59e0b"},fri:{s:"OS",f:"Arjun",c:"#10b981"}},
+  {time:"11-12 PM",mon:{s:"CN",f:"Arjun",c:"#10b981"},tue:{s:"SE",f:"Kavya",c:"#8b5cf6"},wed:{s:"DBMS",f:"Priya",c:"#6366f1"},thu:{s:"OS Lab",f:"Manoj",c:"#059669"},fri:{s:"CN Lab",f:"Manoj",c:"#059669"}},
+  {time:"12-1 PM",mon:{s:"Maths",f:"Ravi",c:"#f59e0b"},tue:{s:"VLSI",f:"Kavya",c:"#8b5cf6"},wed:{s:"SE",f:"Anjali",c:"#8b5cf6"},thu:{s:"CN",f:"Vikram",c:"#10b981"},fri:{s:"DBMS",f:"Priya",c:"#6366f1"}},
+  {time:"1-2 PM",mon:{s:"LUNCH",c:"lunch"},tue:{s:"LUNCH",c:"lunch"},wed:{s:"LUNCH",c:"lunch"},thu:{s:"LUNCH",c:"lunch"},fri:{s:"LUNCH",c:"lunch"}},
+  {time:"2-3 PM",mon:{s:"VLSI Lab",f:"Karthik",c:"#059669"},tue:{s:"Maths",f:"Meena",c:"#f59e0b"},wed:{s:"OS",f:"Arjun",c:"#10b981"},thu:{s:"SE",f:"Anjali",c:"#8b5cf6"},fri:{s:"VLSI",f:"Kavya",c:"#8b5cf6"}},
+  {time:"3-4 PM",mon:{s:"SE",f:"Anjali",c:"#8b5cf6"},tue:{s:"CN",f:"Vikram",c:"#10b981"},wed:{s:"Maths Tut",f:"Ravi",c:"#f59e0b"},thu:{s:"DBMS",f:"Priya",c:"#6366f1"},fri:{s:"FREE",c:"free"}},
+];
+const students=[
+  {roll:"CSE001",name:"Amit Kumar",branch:"CSE-A",status:"Present"},
+  {roll:"CSE002",name:"Sara John",branch:"CSE-A",status:"Present"},
+  {roll:"CSE003",name:"Rahul M.",branch:"CSE-A",status:"Absent"},
+  {roll:"CSE004",name:"Anu R.",branch:"CSE-A",status:"Present"},
+  {roll:"CSE005",name:"John Doe",branch:"CSE-A",status:"Present"},
+  {roll:"CSE006",name:"Asin Test",branch:"CSE-A",status:"Present"},
+  {roll:"CSE007",name:"Meera K.",branch:"CSE-A",status:"Present"},
+  {roll:"CSE008",name:"Vishal P.",branch:"CSE-A",status:"Late"},
+];
+
+function badge(d){if(d.c==='cancel')return`<span class="badge badge-cancel">Cancelled</span>`;if(d.c==='free')return`<span class="badge" style="background:#f1f5f9;color:#94a3b8">FREE</span>`;if(d.c==='lunch')return`<span class="badge badge-lunch">🍱 LUNCH</span>`;return `<span class="badge" style="background:${d.c}">${d.s}<br><small style="font-size:10px">${d.f||''}</small></span>`}
+function renderTable(){let table=document.getElementById('fullTable');table.innerHTML='<tr><th class=time-col>Time / Day</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th></tr>';timetableData.forEach(row=>{let tr=document.createElement('tr');if(row.mon.s==='LUNCH')tr.style.background='#fffbeb';tr.innerHTML=`<td class=time-col>${row.time}</td><td>${badge(row.mon)}</td><td>${badge(row.tue)}</td><td>${badge(row.wed)}</td><td>${badge(row.thu)}</td><td>${badge(row.fri)}</td>`;table.appendChild(tr);});}
+function renderFaculty(filter){let cont=document.getElementById('facCards');cont.innerHTML='';let list=filter?facultyData.filter(f=>f.key===filter):facultyData;list.forEach(f=>{let div=document.createElement('div');div.className='mini';div.innerHTML=`<div style="display:flex;justify-content:space-between"><div><p style="font-weight:800">${f.name}</p><p style="font-size:11px;color:#94a3b8">${f.cabin} • ${f.exp}</p></div><span class="${f.color==='free'?'status-free':'status-busy'}">${f.status}</span></div><div style="margin-top:8px">${f.subjects.map(s=>`<span class=subject-tag>${s}</span>`).join('')}</div>`;cont.appendChild(div);});}
+function renderStudents(){let table=document.getElementById('studentTable');table.innerHTML='<tr><th>Roll No</th><th>Name</th><th>Branch</th><th>Status</th><th>Action</th></tr>';students.forEach(s=>{let tr=document.createElement('tr');tr.innerHTML=`<td style="font-weight:700">${s.roll}</td><td>${s.name}</td><td>${s.branch}</td><td><span style="background:${s.status==='Present'?'#dcfce7':'#fee2e2'};color:${s.status==='Present'?'#15803d':'#b91c1c'};padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700">${s.status}</span></td><td><button onclick="alert('Message sent to ${s.name}')" style="background:#6366f1;color:white;border:none;padding:6px 12px;border-radius:8px;font-size:11px;cursor:pointer">Message</button></td>`;table.appendChild(tr);});}
+
+let role=''
+function enter(){
+  let nameInput=document.getElementById('name').value.trim();
+  role=document.getElementById('role').value;
+  let error=document.getElementById('error');
+  error.innerText='';
+  if(!nameInput){error.innerText='Enter name';return;}
+  let lower=nameInput.toLowerCase();
+  let keys=facultyData.map(f=>f.key);
+
+  if(role==='admin' && lower!=='asin'){error.innerText='⛔ Only "Asin" can be Admin';return;}
+  if(role==='faculty' && lower==='asin'){error.innerText='⛔ Asin is Admin, not Faculty';return;}
+  if(role==='faculty' && !keys.some(k=>lower.includes(k))){error.innerText='⛔ Faculty not found. Use: Priya, Arjun, Kavya...';return;}
+  if(role==='student' && (lower==='asin' || keys.some(k=>lower.includes(k)))){error.innerText='⛔ You are Admin/Faculty, select correct role';return;}
+
+  document.getElementById('login').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('userInfo').innerText=nameInput+' • '+role.toUpperCase();
+  renderTable();renderFaculty();renderStudents();
+
+  if(role==='admin'){
+    document.getElementById('dashTitle').innerText='Welcome Asin - ADMIN (Access: Everyone)';
+    document.getElementById('dashDesc').innerText='✅ Admin Asin can access: ALL Faculty + ALL Students + Full Control';
+    document.getElementById('dashCards').innerHTML=`<div class=mini>👩‍🏫 10 Faculty - ALL ACCESS ✅</div><div class=mini>👨‍🎓 200+ Students - ALL ACCESS ✅</div><div class=mini>🗓️ Full Control ✅</div>`;
+    document.getElementById('facTitle').innerText='All Faculty - 10 Faculty';
+    document.getElementById('studTitle').innerText='All Students - 200+ Students - Admin View';
+    document.getElementById('studDesc').innerText='Admin Asin can access all students';
+    document.getElementById('timeInfo').innerText='Admin: Full 9AM-4PM control';
+    document.getElementById('b-fac').classList.remove('hidden');
+    document.getElementById('b-stud').classList.remove('hidden');
+    document.getElementById('b-stud').innerText='👨‍🎓 All Students (200+)';
+    document.getElementById('cancelBtn').classList.remove('hidden');
+    document.getElementById('adminAlert').classList.remove('hidden');
+    renderFaculty(null);
+  }
+  if(role==='faculty'){
+    let myKey=facultyData.find(f=>lower.includes(f.key))?.key||'priya';
+    let myData=facultyData.find(f=>f.key===myKey);
+    document.getElementById('dashTitle').innerText='Welcome Prof. '+nameInput+' - FACULTY (Self + Students)';
+    document.getElementById('dashDesc').innerText='✅ Faculty can access: Own Profile ('+myData.subjects.join(', ')+') + Students';
+    document.getElementById('dashCards').innerHTML=`<div class=mini>👩‍🏫 Self: ${myData.name} ✅</div><div class=mini>👨‍🎓 62 Students - ACCESS ✅</div><div class=mini>🚫 Other Faculty - NO ❌</div>`;
+    document.getElementById('facTitle').innerText='My Profile Only - Faculty View';
+    document.getElementById('studTitle').innerText='My Students (62) - CSE-A - Faculty Access';
+    document.getElementById('studDesc').innerText='Faculty '+nameInput+' can view, message, and send reminders to these students';
+    document.getElementById('timeInfo').innerText='Faculty: Your timetable + Student access';
+    document.getElementById('b-fac').classList.remove('hidden');
+    document.getElementById('b-fac').innerText='👩‍🏫 My Profile';
+    document.getElementById('b-stud').classList.remove('hidden');
+    document.getElementById('b-stud').innerText='👨‍🎓 My Students (62)';
+    document.getElementById('facultyActions').classList.remove('hidden');
+    document.getElementById('adminAlert').classList.add('hidden');
+    document.getElementById('cancelBtn').classList.add('hidden');
+    renderFaculty(myKey);
+  }
+  if(role==='student'){
+    document.getElementById('dashTitle').innerText='Hi '+nameInput+' - STUDENT (Only Student Access)';
+    document.getElementById('dashDesc').innerText='✅ Student can access: Only own timetable + reminders. No faculty management.';
+    document.getElementById('dashCards').innerHTML=`<div class=mini>🚫 Faculty - NO ❌</div><div class=mini>👨‍🎓 Student Only ✅</div><div class=mini>🗓️ View Only</div>`;
+    document.getElementById('b-fac').classList.add('hidden');
+    document.getElementById('b-stud').classList.add('hidden');
+    document.getElementById('cancelBtn').classList.add('hidden');
+    document.getElementById('adminAlert').classList.add('hidden');
+    document.getElementById('facultyActions').classList.add('hidden');
+  }
+  document.getElementById('remBox').innerHTML=`<div class=mini>📌 DBMS Assignment due 4 PM today</div>`;
+}
+function tab(id){['dash','time','fac','stud','rem'].forEach(t=>{let el=document.getElementById(t+'Tab');if(el)el.classList.add('hidden');let b=document.getElementById('b-'+t);if(b)b.classList.remove('active')});document.getElementById(id+'Tab').classList.remove('hidden');document.getElementById('b-'+id).classList.add('active')}
+function resolve(){document.getElementById('adminAlert').innerHTML='<p style="color:#15803d;font-weight:800">✅ Fixed by Admin Asin! Substitute assigned.</p>'}
+function cancelClass(){alert('Cancelled! All students notified by Admin Asin')}
+function markFree(){alert('✅ Status FREE! All 62 students notified that you are available for doubts');}
+</script>
+</body>
+</html>
